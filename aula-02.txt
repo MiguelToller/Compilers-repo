@@ -1,0 +1,3 @@
+**pré-processamento**: retirar os comentários do código-fonte mantendo a estrutura do código original.
+
+fases do compilador.
