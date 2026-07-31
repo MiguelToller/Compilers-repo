@@ -1,77 +1,125 @@
 import os
 import io
-import tokenize
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-def string_esta_isolada(indice_atual: int, tokens: list) -> bool:
-    """Verifica se uma string esta solta (agindo como docstring/comentario) ou se faz parte do codigo."""
-    for i in range(indice_atual - 1, -1, -1):
-        tipo = tokens[i].type
-        if tipo in (tokenize.NL, tokenize.COMMENT):
-            continue
-        if tipo in (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
-            return True
-        return False
-    return True
 
+def remover_comentarios_c(codigo_c: str) -> str:
+    """Remove comentários // e /* ... */ de um código C,
 
-def apagar_token_do_texto(tok, linhas: list):
-    """Apaga o trecho de texto de um token mantendo o numero de linhas e a estrutura."""
-    lin_inicio, col_inicio = tok.start
-    lin_fim, col_fim = tok.end
-    
-    i_inicio, i_fim = lin_inicio - 1, lin_fim - 1
-    
-    if i_inicio == i_fim:
-        linhas[i_inicio] = linhas[i_inicio][:col_inicio] + linhas[i_inicio][col_fim:]
-    else:
-        linhas[i_inicio] = linhas[i_inicio][:col_inicio] + "\n"
-        for i in range(i_inicio + 1, i_fim):
-            linhas[i] = "\n"
-        linhas[i_fim] = linhas[i_fim][col_fim:]
+    preservando exatamente o número de linhas e colunas.
+    """
+    resultado = []
+    i = 0
+    n = len(codigo_c)
 
+    # Estados da máquina
+    IN_NORMAL = 0
+    IN_STRING = 1
+    IN_CHAR = 2
+    IN_LINE_COMMENT = 3
+    IN_BLOCK_COMMENT = 4
 
-def remover_comentarios_do_codigo(codigo_fonte: str) -> str:
-    """Remove comentarios (#) e docstrings isoladas, preservando a estrutura."""
-    linhas = codigo_fonte.splitlines(keepends=True)
-    
-    try:
-        tokens = list(tokenize.generate_tokens(io.StringIO(codigo_fonte).readline))
-    except tokenize.TokenError:
-        return codigo_fonte
+    estado = IN_NORMAL
 
-    tokens_para_apagar = []
+    while i < n:
+        char = codigo_c[i]
+        proximo = codigo_c[i + 1] if i + 1 < n else ""
 
-    for i, tok in enumerate(tokens):
-        if tok.type == tokenize.COMMENT:
-            tokens_para_apagar.append(tok)
-        elif tok.type == tokenize.STRING and string_esta_isolada(i, tokens):
-            tokens_para_apagar.append(tok)
+        # --- ESTADO 0: CÓDIGO NORMAL ---
+        if estado == IN_NORMAL:
+            if char == '"':
+                estado = IN_STRING
+                resultado.append(char)
+                i += 1
+            elif char == "'":
+                estado = IN_CHAR
+                resultado.append(char)
+                i += 1
+            elif char == "/" and proximo == "/":
+                estado = IN_LINE_COMMENT
+                resultado.append(" ")  # Substitui '/' por espaço
+                resultado.append(" ")  # Substitui '/' por espaço
+                i += 2
+            elif char == "/" and proximo == "*":
+                estado = IN_BLOCK_COMMENT
+                resultado.append(" ")  # Substitui '/' por espaço
+                resultado.append(" ")  # Substitui '*' por espaço
+                i += 2
+            else:
+                resultado.append(char)
+                i += 1
 
-    for tok in reversed(tokens_para_apagar):
-        apagar_token_do_texto(tok, linhas)
+        # --- ESTADO 1: DENTRO DE UMA STRING "..." ---
+        elif estado == IN_STRING:
+            resultado.append(char)
+            # Ignora aspas escapadas como \"
+            if char == "\\" and i + 1 < n:
+                resultado.append(codigo_c[i + 1])
+                i += 2
+            elif char == '"':
+                estado = IN_NORMAL
+                i += 1
+            else:
+                i += 1
 
-    return "".join(linhas)
+        # --- ESTADO 2: DENTRO DE UM CARACTERE '...' ---
+        elif estado == IN_CHAR:
+            resultado.append(char)
+            # Ignora aspas escapadas como \'
+            if char == "\\" and i + 1 < n:
+                resultado.append(codigo_c[i + 1])
+                i += 2
+            elif char == "'":
+                estado = IN_NORMAL
+                i += 1
+            else:
+                i += 1
+
+        # --- ESTADO 3: COMENTÁRIO DE LINHA // ---
+        elif estado == IN_LINE_COMMENT:
+            if char == "\n":
+                estado = IN_NORMAL
+                resultado.append("\n")  # Mantém a quebra de linha
+            else:
+                resultado.append(" ")  # Troca cada caractere por espaço
+            i += 1
+
+        # --- ESTADO 4: COMENTÁRIO DE BLOCO /* ... */ ---
+        elif estado == IN_BLOCK_COMMENT:
+            if char == "*" and proximo == "/":
+                estado = IN_NORMAL
+                resultado.append(" ")  # Troca '*' por espaço
+                resultado.append(" ")  # Troca '/' por espaço
+                i += 2
+            elif char == "\n":
+                resultado.append(
+                    "\n"
+                )  # Mantém o \n para não alterar número da linha
+                i += 1
+            else:
+                resultado.append(" ")  # Troca o texto por espaço
+                i += 1
+
+    return "".join(resultado)
 
 
 def selecionar_e_processar_arquivo():
-    """Abre uma janela de selecao de arquivo e processa o arquivo escolhido."""
-    # Oculta a janela principal do Tkinter
+    """Abre a janela gráfica de seleção de arquivo e processa o .c escolhido."""
     root = tk.Tk()
-    root.withdraw()
+    root.withdraw()  # Esconde a janela principal do Tkinter
 
-    # Abre a caixa de dialogo para selecionar o arquivo
     caminho_entrada = filedialog.askopenfilename(
-        title="Selecione um arquivo Python (.py)",
-        filetypes=[("Arquivos Python", "*.py"), ("Todos os arquivos", "*.*")]
+        title="Selecione um arquivo de código fonte em C (.c)",
+        filetypes=[
+            ("Arquivos C / C++", "*.c *.h *.cpp"),
+            ("Todos os arquivos", "*.*"),
+        ],
     )
 
     if not caminho_entrada:
-        print("Operacao cancelada pelo usuario.")
         return
 
-    # Gera o nome do arquivo de saida
     nome_base, ext = os.path.splitext(caminho_entrada)
     caminho_saida = f"{nome_base}_sem_comentarios{ext}"
 
@@ -82,17 +130,13 @@ def selecionar_e_processar_arquivo():
         with open(caminho_entrada, "r", encoding="latin-1") as f:
             conteudo = f.read()
 
-    # Remove os comentarios
-    codigo_limpo = remover_comentarios_do_codigo(conteudo)
+    codigo_limpo = remover_comentarios_c(conteudo)
 
-    # Salva o novo arquivo
     with open(caminho_saida, "w", encoding="utf-8") as f:
         f.write(codigo_limpo)
 
-    # Mostra uma mensagem de sucesso na tela
-    mensagem = f"Arquivo processado com sucesso!\n\nSalvo como:\n{os.path.basename(caminho_saida)}"
-    messagebox.showinfo("Sucesso!", mensagem)
-    print(mensagem)
+    mensagem = f"Sucesso!\nComentários removidos do arquivo C.\n\nSalvo em:\n{os.path.basename(caminho_saida)}"
+    messagebox.showinfo("Concluído", mensagem)
 
 
 if __name__ == "__main__":
