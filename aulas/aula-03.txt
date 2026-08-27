@@ -1,0 +1,17 @@
+1° Dentre as classes possíveis, os tipos que não temos no momento.
+- 'INTEIRO', 'FRACIONARIO', 'NOMEVARIAVEL'
+
+Problema: ** x = 0 & x == 0 **
+ 
+Organizador léxico vai dividir em tokens.
+
+2° Criar nova classificação para '=':
+- O primeiro '=' vai ser do tipo 'ATRIBUICAO'
+- O segundo '=' vai ser do tipo 'SINALCOMPARACAO'
+
+3° Criar também, novo tipo 'SINALCOMPARACAO' para:
+- >=
+- <=
+- >
+- <
+- !=
