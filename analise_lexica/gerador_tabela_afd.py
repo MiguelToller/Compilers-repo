@@ -2,6 +2,14 @@ import os
 import sys
 import json
 
+# Conjunto de palavras reservadas da linguagem C (ANSI C / C99)
+PALAVRAS_RESERVADAS_C = {
+    "auto", "break", "case", "char", "const", "continue", "default", "do",
+    "double", "else", "enum", "extern", "float", "for", "goto", "if",
+    "int", "long", "register", "return", "short", "signed", "sizeof", "static",
+    "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while"
+}
+
 
 class Simbolo(dict):
     """
@@ -140,6 +148,21 @@ def processar_codigo_fonte(caminho_fonte, estado_inicial, simbolos, estados_fina
     return tabela_simbolos
 
 
+def identificar_palavras_reservadas(tabela):
+    """
+    Percorre a Tabela de Símbolos e, para cada entrada com tipo 'NOMEVARIAVEL'
+    cujo token coincida com uma palavra reservada de C, atualiza o tipo
+    para 'PALAVRA_RESERVADA: <PALAVRA>'.
+    """
+    for item in tabela:
+        tipo = str(item.get("tipo", "")).upper()
+        if tipo == "NOMEVARIAVEL":
+            token = str(item.get("token", ""))
+            if token in PALAVRAS_RESERVADAS_C:
+                item["tipo"] = f"PALAVRA_RESERVADA: {token.upper()}"
+    return tabela
+
+
 def imprimir_tabela(tabela):
     """
     Exibe a Tabela de Símbolos formatada no terminal.
@@ -239,6 +262,7 @@ def main():
     if os.path.exists(caminho_fonte):
         print(f"[*] Processando código-fonte: {os.path.basename(caminho_fonte)}")
         tabela = processar_codigo_fonte(caminho_fonte, estado_inicial, simbolos, estados_finais, transicoes)
+        tabela = identificar_palavras_reservadas(tabela)
         imprimir_tabela(tabela)
         salvar_tabela_json(tabela, caminho_json)
     else:
