@@ -1,17 +1,16 @@
 """
-Analisador Sintático e Léxico - Declaração e Inicialização de Variáveis.
+Analisador Sintático e Léxico - Exercício 1: Análise Sintática.
 
-Gramática Original:
-    [TIPO] -> PR:INT | PR:CHAR | PR:FLOAT | PR:DOUBLE | PR:VOID | PR:BOOLEAN
-    Declara -> [TIPO][NOMEVARIAVEL][PV] | [TIPO][NOMEVARIAVEL] DeclaraMultiplo [PV]
-    DeclaraMultiplo -> [VG][NOMEVARIAVEL] | [VG][NOMEVARIAVEL] DeclaraMultiplo
+# Tipos definidos no enunciado
+[TIPO] -> PR:INT | PR:CHAR | PR:FLOAT | PR:DOUBLE | PR:VOID | PR:BOOLEAN
 
-Nova Sintaxe (Com Inicialização de Variável):
-    [TIPO] -> PR:INT | PR:CHAR | PR:FLOAT | PR:DOUBLE | PR:VOID | PR:BOOLEAN
-    Declara -> [TIPO] [DECLARADOR] [PV] | [TIPO] [DECLARADOR] DeclaraMultiplo [PV]
-    DeclaraMultiplo -> [VG] [DECLARADOR] | [VG] [DECLARADOR] DeclaraMultiplo
-    [DECLARADOR] -> [NOMEVARIAVEL] | [NOMEVARIAVEL] [ATRIBUICAO] [VALOR]
-    [VALOR] -> INTEIRO | FRACIONARIO | NOMEVARIAVEL | PR:TRUE | PR:FALSE
+# Nova sintaxe: cada variável pode ser declarada sem valor ou inicializada
+[VALOR] -> INTEIRO | FRACIONARIO | NOMEVARIAVEL | PR:TRUE | PR:FALSE
+[INICIALIZACAO] -> ATRIBUICAO VALOR
+[DECLARADOR] -> NOMEVARIAVEL | NOMEVARIAVEL INICIALIZACAO
+
+Declara -> TIPO DECLARADOR PV | TIPO DECLARADOR DeclaraMultiplo PV
+DeclaraMultiplo -> VG DECLARADOR | VG DECLARADOR DeclaraMultiplo
 """
 
 import csv
@@ -271,6 +270,36 @@ def adicionar_simbolo(caminho_csv: str, identificador: int, token: Token) -> Non
         )
 
 
+def imprimir_tabela(dados: List[dict], colunas: List[str], titulo: Optional[str] = None) -> None:
+    """
+    Exibe uma tabela formatada no terminal no mesmo padrão do gerador_tabela_afd.py.
+    """
+    if not dados:
+        print("\n[!] Tabela vazia.")
+        return
+
+    if titulo:
+        print(f"\n=== {titulo} ===")
+
+    larguras = {col: len(col) for col in colunas}
+    for item in dados:
+        for col in colunas:
+            val = str(item.get(col, ""))
+            if len(val) > larguras[col]:
+                larguras[col] = len(val)
+
+    separador = "+" + "+".join("-" * (larguras[col] + 2) for col in colunas) + "+"
+    cabecalho = "|" + "|".join(f" {col:<{larguras[col]}} " for col in colunas) + "|"
+
+    print(separador)
+    print(cabecalho)
+    print(separador)
+    for item in dados:
+        linha_str = "|" + "|".join(f" {str(item.get(col, '')):<{larguras[col]}} " for col in colunas) + "|"
+        print(linha_str)
+    print(separador)
+
+
 def mostrar_tokens(tokens: List[Token]) -> None:
     """Exibe os tokens reconhecidos e sua classificação."""
     for token in tokens:
@@ -302,6 +331,8 @@ def processar_arquivo(caminho_entrada: str, caminho_csv: str) -> None:
     """Processa o arquivo-fonte, gerando a tabela de símbolos e executando a análise sintática."""
     criar_tabela_simbolos(caminho_csv)
     proximo_id = 1
+    tabela_simbolos_memoria = []
+    relatorio_sintatico = []
 
     with open(caminho_entrada, "r", encoding="utf-8") as arquivo:
         for numero_linha, linha in enumerate(arquivo, start=1):
@@ -319,10 +350,46 @@ def processar_arquivo(caminho_entrada: str, caminho_csv: str) -> None:
             for token in tokens:
                 if token.aceito:
                     adicionar_simbolo(caminho_csv, proximo_id, token)
+                    tabela_simbolos_memoria.append({
+                        "ID": proximo_id,
+                        "token": token.lexema,
+                        "tipo": token.tipo,
+                        "linha": token.linha,
+                        "coluna": token.coluna,
+                    })
                     proximo_id += 1
 
             resultado = analisar_declaracao(tokens)
             mostrar_declaracao(resultado)
+
+            categoria = "DECLARA_MULTIPLO" if len(resultado.declaradores) > 1 else "DECLARA"
+            status = "ACEITA" if resultado.aceito else "REJEITADA"
+            itens = [
+                item.nome if item.valor is None else f"{item.nome} = {item.valor}"
+                for item in resultado.declaradores
+            ]
+            relatorio_sintatico.append({
+                "Linha": numero_linha,
+                "Código": linha_limpa,
+                "Tipo": resultado.tipo if resultado.tipo else "-",
+                "Regra": categoria if resultado.aceito else "-",
+                "Status": status,
+                "Declaradores": ", ".join(itens) if itens else "-",
+                "Mensagem": resultado.mensagem
+            })
+
+    # Exibição das Tabelas Formatadas (estilo gerador_tabela_afd.py)
+    imprimir_tabela(
+        tabela_simbolos_memoria,
+        ["ID", "token", "tipo", "linha", "coluna"],
+        "TABELA DE SÍMBOLOS (ANÁLISE LÉXICA)"
+    )
+
+    imprimir_tabela(
+        relatorio_sintatico,
+        ["Linha", "Código", "Tipo", "Regra", "Status", "Declaradores"],
+        "RESUMO DA ANÁLISE SINTÁTICA"
+    )
 
 
 def main() -> None:

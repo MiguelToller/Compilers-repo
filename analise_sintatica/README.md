@@ -1,107 +1,96 @@
-# Análise Sintática: Declaração e Inicialização de Variáveis
+# Exercício 1 — Análise Sintática
 
-Este exercício implementa a análise léxica e sintática para declaração de variáveis com inicialização opcional em C, gerando a tabela de símbolos em CSV e validando as sentenças linha a linha.
+Esta implementação atende ao enunciado de **AnaliseSintatica/Exercicio1**, reaproveitando o conceito e a visualização em tabela de [`analise_lexica/gerador_tabela_afd.py`](../analise_lexica/gerador_tabela_afd.py).
 
----
+## Sintaxe
 
-## 1. Enunciado
+Os tipos aceitos são `int`, `char`, `float`, `double`, `void` e `boolean`. Cada variável pode ser declarada sem inicialização ou com uma inicialização simples:
 
-> A partir da sintaxe original de declaração de variável abaixo, criar uma **NOVA SINTAXE** para declaração **COM inicialização de variável**.
+```c
+int numero;
+int numero = 10;
+int a = 1, b = 2, c;
+float media = 7.5;
+boolean ativo = true;
+```
 
-### Sintaxe Original (Sem Inicialização)
+A gramática está registrada em [`sintaxe.txt`](sintaxe.txt). A regra de inicialização é:
+
 ```text
+# Tipos definidos no enunciado
 [TIPO] -> PR:INT | PR:CHAR | PR:FLOAT | PR:DOUBLE | PR:VOID | PR:BOOLEAN
-Declara -> [TIPO][NOMEVARIAVEL][PV] | [TIPO][NOMEVARIAVEL] DeclaraMultiplo [PV]
-DeclaraMultiplo -> [VG][NOMEVARIAVEL] | [VG][NOMEVARIAVEL] DeclaraMultiplo
+
+# Nova sintaxe: cada variável pode ser declarada sem valor ou inicializada
+[VALOR] -> INTEIRO | FRACIONARIO | NOMEVARIAVEL | PR:TRUE | PR:FALSE
+[INICIALIZACAO] -> ATRIBUICAO VALOR
+[DECLARADOR] -> NOMEVARIAVEL | NOMEVARIAVEL INICIALIZACAO
+
+Declara -> TIPO DECLARADOR PV | TIPO DECLARADOR DeclaraMultiplo PV
+DeclaraMultiplo -> VG DECLARADOR | VG DECLARADOR DeclaraMultiplo
 ```
 
----
-
-## 2. Nova Sintaxe Proposta (Com Inicialização de Variável)
-
-Na sintaxe original, a declaração era restrita a `[NOMEVARIAVEL]`.  
-Com a nova regra `DECLARADOR`, a variável pode ser declarada apenas com seu identificador ou acompanhada de um operador de atribuição e seu respectivo valor inicial:
-
-```text
-[TIPO]           -> PR:INT | PR:CHAR | PR:FLOAT | PR:DOUBLE | PR:VOID | PR:BOOLEAN
-Declara          -> [TIPO] [DECLARADOR] [PV] 
-                  | [TIPO] [DECLARADOR] DeclaraMultiplo [PV]
-DeclaraMultiplo  -> [VG] [DECLARADOR] 
-                  | [VG] [DECLARADOR] DeclaraMultiplo
-
-[DECLARADOR]     -> [NOMEVARIAVEL] 
-                  | [NOMEVARIAVEL] [ATRIBUICAO] [VALOR]
-
-[VALOR]          -> INTEIRO | FRACIONARIO | NOMEVARIAVEL | PR:TRUE | PR:FALSE
-```
-
-### Exemplos Válidos:
-- `int x = 10;` (declaração simples com inicialização)
-- `char letra;` (declaração simples sem inicialização)
-- `double a = 1.5, b, c = 3.14;` (declaração múltipla com inicializações mistas)
-- `boolean ativo = true;` (declaração com valor booleano)
+`DeclaraMultiplo` pode repetir indefinidamente o trecho `, DECLARADOR`.
 
 ---
 
-## 3. Estrutura dos Arquivos
+## Execução
 
-- [`analisador_sintatico.py`](file:///c:/Users/laboratorio/Desktop/Compilers-repo/analise_sintatica/analisador_sintatico.py): Script principal contendo a tokenização, classificação dos lexemas, reconhecimento da regra `Declara` / `DeclaraMultiplo` com `DECLARADOR` e exportação da tabela de símbolos em CSV.
-- [`input.c`](file:///c:/Users/laboratorio/Desktop/Compilers-repo/analise_sintatica/input.c): Arquivo de entrada contendo exemplos válidos e linhas com erros sintáticos intencionais.
-- [`tabela_simbolos.csv`](file:///c:/Users/laboratorio/Desktop/Compilers-repo/analise_sintatica/tabela_simbolos.csv): Tabela de símbolos exportada após a análise.
+Na pasta desta implementação, execute:
 
----
-
-## 4. Como Executar
-
-Dentro da pasta `analise_sintatica`:
 ```bash
-python analisador_sintatico.py
+python3 analisador_sintatico.py
+```
+*(ou `python analisador_sintatico.py` no Windows)*
+
+O programa mostra:
+1. Os tokens e o resultado de cada linha analisada.
+2. A **Tabela de Símbolos (Léxica)** formatada no terminal (estilo `gerador_tabela_afd.py`).
+3. O **Resumo da Análise Sintática** formatado em tabela.
+4. Grava os tokens reconhecidos em [`tabela_simbolos.csv`](tabela_simbolos.csv).
+
+---
+
+## Exemplo de Saída em Tabela
+
+### Tabela de Símbolos (Léxica)
+```text
+=== TABELA DE SÍMBOLOS (ANÁLISE LÉXICA) ===
++----+--------+---------------+-------+--------+
+| ID | token  | tipo          | linha | coluna |
++----+--------+---------------+-------+--------+
+| 1  | int    | PR:INT        | 1     | 1      |
+| 2  | numero | NOMEVARIAVEL  | 1     | 5      |
+| 3  | ;      | PONTO_VIRGULA | 1     | 11     |
+| 4  | int    | PR:INT        | 2     | 1      |
+| 5  | numero | NOMEVARIAVEL  | 2     | 5      |
+| 6  | =      | ATRIBUICAO    | 2     | 12     |
+| 7  | 10     | INTEIRO       | 2     | 14     |
+| 8  | ;      | PONTO_VIRGULA | 2     | 16     |
++----+--------+---------------+-------+--------+
 ```
 
-Ou a partir da raiz do repositório:
-```bash
-python analise_sintatica/analisador_sintatico.py
+### Resumo da Análise Sintática
+```text
+=== RESUMO DA ANÁLISE SINTÁTICA ===
++-------+--------------------------+------------+------------------+-----------+-------------------+
+| Linha | Código                   | Tipo       | Regra            | Status    | Declaradores      |
++-------+--------------------------+------------+------------------+-----------+-------------------+
+| 1     | int numero;              | PR:INT     | DECLARA          | ACEITA    | numero            |
+| 2     | int numero = 10;         | PR:INT     | DECLARA          | ACEITA    | numero = 10       |
+| 3     | int a = 1, b = 2, c;     | PR:INT     | DECLARA_MULTIPLO | ACEITA    | a = 1, b = 2, c   |
+| 4     | float media = 7.5;       | PR:FLOAT   | DECLARA          | ACEITA    | media = 7.5       |
+| 5     | boolean ativo = true;    | PR:BOOLEAN | DECLARA          | ACEITA    | ativo = true      |
+| 6     | int erro_atribuicao = ;  | PR:INT     | -                | REJEITADA | -                 |
+| 7     | float = 10;              | PR:FLOAT   | -                | REJEITADA | -                 |
+| 8     | double sem_ponto_virgula | PR:DOUBLE  | -                | REJEITADA | sem_ponto_virgula |
++-------+--------------------------+------------+------------------+-----------+-------------------+
 ```
 
 ---
 
-## 5. Exemplo de Saída
+## Estrutura dos Arquivos
 
-```text
-Linha 1: int x = 10;
-  [ACEITO] 'int' -> PR:INT (linha 1, coluna 1)
-  [ACEITO] 'x' -> NOMEVARIAVEL (linha 1, coluna 5)
-  [ACEITO] '=' -> ATRIBUICAO (linha 1, coluna 7)
-  [ACEITO] '10' -> INTEIRO (linha 1, coluna 9)
-  [ACEITO] ';' -> PONTO_VIRGULA (linha 1, coluna 11)
-  [DECLARACAO ACEITA - DECLARA]
-  Tipo: PR:INT
-  Declaradores: x = 10
-  Mensagem: Declaração aceita com 1 variável(is) e 1 inicialização(ões).
-
-Linha 4: double a = 1.5, b, c = 3.14;
-  [ACEITO] 'double' -> PR:DOUBLE (linha 4, coluna 1)
-  [ACEITO] 'a' -> NOMEVARIAVEL (linha 4, coluna 8)
-  [ACEITO] '=' -> ATRIBUICAO (linha 4, coluna 10)
-  [ACEITO] '1.5' -> FRACIONARIO (linha 4, coluna 12)
-  [ACEITO] ',' -> VIRGULA (linha 4, coluna 15)
-  [ACEITO] 'b' -> NOMEVARIAVEL (linha 4, coluna 17)
-  [ACEITO] ',' -> VIRGULA (linha 4, coluna 18)
-  [ACEITO] 'c' -> NOMEVARIAVEL (linha 4, coluna 20)
-  [ACEITO] '=' -> ATRIBUICAO (linha 4, coluna 22)
-  [ACEITO] '3.14' -> FRACIONARIO (linha 4, coluna 24)
-  [ACEITO] ';' -> PONTO_VIRGULA (linha 4, coluna 28)
-  [DECLARACAO ACEITA - DECLARA_MULTIPLO]
-  Tipo: PR:DOUBLE
-  Declaradores: a = 1.5, b, c = 3.14
-  Mensagem: Declaração aceita com 3 variável(is) e 2 inicialização(ões).
-
-Linha 7: int erro_atribuicao = ;
-  [ACEITO] 'int' -> PR:INT (linha 7, coluna 1)
-  [ACEITO] 'erro_atribuicao' -> NOMEVARIAVEL (linha 7, coluna 5)
-  [ACEITO] '=' -> ATRIBUICAO (linha 7, coluna 21)
-  [ACEITO] ';' -> PONTO_VIRGULA (linha 7, coluna 23)
-  [DECLARACAO REJEITADA - DECLARA]
-  Tipo: PR:INT
-  Mensagem: Era esperado VALOR depois de '=' para 'erro_atribuicao', mas foi encontrado ';'.
-```
+- [`analisador_sintatico.py`](analisador_sintatico.py): Analisador léxico e sintático com visualização em tabela e exportação para CSV.
+- [`sintaxe.txt`](sintaxe.txt): Registro formal das produções da gramática.
+- [`input.c`](input.c): Arquivo de entrada com os códigos de teste.
+- [`tabela_simbolos.csv`](tabela_simbolos.csv): Tabela de símbolos gerada após a execução.
